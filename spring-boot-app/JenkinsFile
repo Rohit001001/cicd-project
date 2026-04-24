@@ -21,7 +21,7 @@ pipeline {
     }
     stage('Static Code Analysis') {
       environment {
-        SONAR_URL = "http://localhost:9000"  // Use actual IP, not localhost
+        SONAR_URL = "http://172.19.131.188:9000"  // Use actual IP, not localhost
       }
       steps {
         dir('spring-boot-app') {
