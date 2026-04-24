@@ -30,59 +30,64 @@ pipeline {
       steps {
         dir('spring-boot-app') {
           withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
-            sh 'mvn sonar:sonar -Dsonar.login=$SONAR_AUTH_TOKEN -Dsonar.host.url=${SONAR_URL}'
+            sh '''
+              mvn sonar:sonar \
+              -Dsonar.login=$SONAR_AUTH_TOKEN \
+              -Dsonar.host.url=$SONAR_URL
+            '''
           }
         }
       }
     }
 
-   stage('Build and Push Docker Image') {
-  environment {
-    DOCKER_IMAGE = "rohitgitte/ultimate-cicd:${BUILD_NUMBER}"
-  }
-  steps {
-    dir('spring-boot-app') {
-      script {
-        sh '''
-          apt-get update -qq
-          apt-get install -y docker.io
-        '''
-        sh "docker build -t ${DOCKER_IMAGE} ."
-        withCredentials([usernamePassword(
-          credentialsId: 'docker-cred',
-          usernameVariable: 'DOCKER_USER',
-          passwordVariable: 'DOCKER_PASS'
-        )]) {
-          sh """
-            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-            docker push ${DOCKER_IMAGE}
-          """
+    stage('Build and Push Docker Image') {
+      environment {
+        DOCKER_IMAGE = "rohitgitte/ultimate-cicd:${BUILD_NUMBER}"
+      }
+      steps {
+        dir('spring-boot-app') {
+          script {
+            sh '''
+              apt-get update -qq
+              apt-get install -y docker.io
+            '''
+            sh 'docker build -t $DOCKER_IMAGE .'
+
+            withCredentials([usernamePassword(
+              credentialsId: 'docker-cred',
+              usernameVariable: 'DOCKER_USER',
+              passwordVariable: 'DOCKER_PASS'
+            )]) {
+              sh '''
+                echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                docker push $DOCKER_IMAGE
+              '''
+            }
+          }
         }
       }
     }
-  }
-}
 
-  stage('Update Deployment File') {
-  steps {
-    withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-      sh '''
-        # Verify we are in a git repo
-        git status
+    stage('Update Deployment File') {
+      steps {
+        withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+          sh '''
+            git status
+            git config user.email "rohitgitte132005@gmail.com"
+            git config user.name "Rohit001001"
 
-        git config user.email "rohitgitte132005@gmail.com"
-        git config user.name "Rohit001001"
+            sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" spring-boot-app-manifests/deployment.yml
 
-        # Replace the image tag in deployment file
-        sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" spring-boot-app-manifests/deployment.yml
-
-        git add spring-boot-app-manifests/deployment.yml
-        git commit -m "Update deployment image to version ${BUILD_NUMBER}"
-        git push https://${GITHUB_TOKEN}@github.com/Rohit001001/cicd-project HEAD:main
-      '''
+            git add spring-boot-app-manifests/deployment.yml
+            git commit -m "Update deployment image to version ${BUILD_NUMBER}" || echo "No changes"
+            git push https://${GITHUB_TOKEN}@github.com/Rohit001001/cicd-project HEAD:main
+          '''
+        }
+      }
     }
-  }
-}
+
+  }  // ✅ THIS WAS MISSING
+
   post {
     always {
       cleanWs()
