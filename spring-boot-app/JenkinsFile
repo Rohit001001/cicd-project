@@ -3,23 +3,15 @@ pipeline {
     docker {
       image 'abhishekf5/maven-abhishek-docker-agent:v1'
       args '-v /var/run/docker.sock:/var/run/docker.sock'
+      reuseNode true  // CRITICAL FIX
     }
   }
-
   stages {
-
-    stage('Clean') {
-      steps {
-        cleanWs()
-      }
-    }
-
     stage('Checkout') {
       steps {
         checkout scm
       }
     }
-
     stage('Build and Test') {
       steps {
         dir('spring-boot-app') {
@@ -27,10 +19,9 @@ pipeline {
         }
       }
     }
-
     stage('Static Code Analysis') {
       environment {
-        SONAR_URL = "http://localhost:9000"
+        SONAR_URL = "http://localhost:9000"  // Use actual IP, not localhost
       }
       steps {
         dir('spring-boot-app') {
@@ -40,7 +31,6 @@ pipeline {
         }
       }
     }
-
     stage('Build and Push Docker Image') {
       environment {
         DOCKER_IMAGE = "rohitgitte/ultimate-cicd:${BUILD_NUMBER}"
@@ -57,16 +47,13 @@ pipeline {
         }
       }
     }
-
     stage('Update Deployment File') {
       steps {
         withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
           sh '''
             git config user.email "rohitgitte132005@gmail.com"
             git config user.name "Rohit001001"
-
             sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" spring-boot-app-manifests/deployment.yml
-
             git add spring-boot-app-manifests/deployment.yml
             git commit -m "Update deployment image to version ${BUILD_NUMBER}"
             git push https://${GITHUB_TOKEN}@github.com/Rohit001001/cicd-project HEAD:main
@@ -74,6 +61,10 @@ pipeline {
         }
       }
     }
-
+  }
+  post {
+    always {
+      cleanWs()  // Clean AFTER pipeline completes
+    }
   }
 }
