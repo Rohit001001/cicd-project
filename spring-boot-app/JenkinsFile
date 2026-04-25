@@ -11,7 +11,12 @@ pipeline {
 
     stage('Checkout') {
       steps {
-        checkout scm
+        git branch: 'main',
+            url: 'https://github.com/Rohit001001/cicd-project.git',
+            changelog: false,
+            poll: false,
+            shallow: true,
+            depth: 1
       }
     }
 
@@ -86,7 +91,7 @@ pipeline {
       }
     }
 
-  }  // ✅ correctly closed stages
+  }  // ✅ stages closed
 
   post {
     always {
