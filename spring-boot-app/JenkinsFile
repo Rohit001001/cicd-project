@@ -14,8 +14,7 @@ pipeline {
         git branch: 'main',
             url: 'https://github.com/Rohit001001/cicd-project.git',
             changelog: false,
-            poll: false,
-            
+            poll: false 
       }
     }
 
